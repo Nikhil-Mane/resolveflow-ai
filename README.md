@@ -85,8 +85,6 @@ support_agent/                  Main agent package
   mcp_server.py                 Local MCP server over stdio
   knowledge_base.md             Example support policies
 tests/                          Offline unit tests
-simple_langgraph.py             API-key-free introductory graph
-azure_langchain_langgraph.py    Introductory Azure OpenAI graph
 ROADMAP.md                      Prototype-to-production plan
 ```
 
