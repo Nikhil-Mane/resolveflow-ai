@@ -18,8 +18,11 @@ engineering story.
 - [ ] Add structured configuration and startup validation
 - [ ] Introduce typed domain models and structured tool responses
 - [ ] Add timeouts, retries, error categories, and graceful fallbacks
-- [ ] Add conversation checkpointing and session identifiers
-- [ ] Expose the graph through a FastAPI service with health endpoints
+- [x] Add durable local SQLite checkpoints and conversation identifiers
+- [ ] Replace local SQLite with production Postgres/Cosmos checkpoint storage
+- [x] Expose the graph through a FastAPI service with health endpoints
+- [x] Stream agent tokens and tool progress with Server-Sent Events
+- [x] Add a React/TypeScript chat UI integrated with streaming
 - [ ] Add linting, formatting, type checking, and pre-commit hooks
 
 ## Stage 3 - Production RAG and quality

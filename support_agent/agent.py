@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,8 @@ if __package__ in {None, ""}:
 
 from langchain_core.messages import SystemMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
@@ -21,6 +24,7 @@ from support_agent.local_tools import build_local_tools
 
 
 MCP_SERVER_PATH = Path(__file__).resolve().parent / "mcp_server.py"
+DEFAULT_MEMORY_DB_PATH = Path(__file__).resolve().parent / "conversations.db"
 
 SYSTEM_PROMPT = """You are a small educational customer-support agent.
 Use the available tools instead of inventing factual results.
@@ -35,7 +39,21 @@ Use plain ASCII punctuation in the final answer.
 """
 
 
-async def build_agent() -> tuple[Any, list[Any]]:
+def create_checkpointer() -> InMemorySaver:
+    """Create process-local storage for short-term conversation memory."""
+
+    return InMemorySaver()
+
+
+def thread_config(thread_id: str) -> dict[str, dict[str, str]]:
+    """Build the LangGraph configuration that identifies one conversation."""
+
+    if not thread_id.strip():
+        raise ValueError("thread_id must not be empty")
+    return {"configurable": {"thread_id": thread_id}}
+
+
+async def build_agent(checkpointer: Any | None = None) -> tuple[Any, list[Any]]:
     """Load all tools and compile the LangGraph agent loop."""
 
     model = create_model()
@@ -69,7 +87,10 @@ async def build_agent() -> tuple[Any, list[Any]]:
         {"tools": "tools", END: END},
     )
     builder.add_edge("tools", "assistant")
-    return builder.compile(), all_tools
+    # Tests and library callers can omit a saver and receive process-local memory.
+    if checkpointer is None:
+        checkpointer = create_checkpointer()
+    return builder.compile(checkpointer=checkpointer), all_tools
 
 
 def used_tool_names(messages: list[Any]) -> list[str]:
@@ -84,23 +105,21 @@ def used_tool_names(messages: list[Any]) -> list[str]:
     return names
 
 
-async def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--list-tools",
-        action="store_true",
-        help="load the agent, print its tool names, and exit",
-    )
-    args = parser.parse_args()
+async def run_cli(agent: Any, tools: list[Any], args: argparse.Namespace) -> None:
+    """Run the interactive prompt using one compiled agent/checkpointer."""
 
-    agent, tools = await build_agent()
     if args.list_tools:
         print("Available tools:")
         for loaded_tool in tools:
             print(f"- {loaded_tool.name}: {loaded_tool.description}")
         return
 
-    print("Five-capability support agent. Type 'exit' to stop.")
+    thread_id = args.thread_id
+    memory_type = "in-memory" if args.in_memory else f"SQLite ({args.memory_db})"
+    print("Five-capability support agent with conversation memory.")
+    print("Commands: /new starts a new conversation; exit stops the program.")
+    print(f"Memory: {memory_type}")
+    print(f"Thread: {thread_id}")
     while True:
         try:
             question = input("\nYou: ").strip()
@@ -108,13 +127,58 @@ async def main() -> None:
             break
         if question.lower() in {"exit", "quit"}:
             break
+        if question.lower() == "/new":
+            thread_id = f"support-{uuid.uuid4().hex[:8]}"
+            print(f"Started a new conversation. Thread: {thread_id}")
+            continue
         if not question:
             continue
 
-        result = await agent.ainvoke({"messages": [("human", question)]})
+        config = thread_config(thread_id)
+        result = await agent.ainvoke(
+            {"messages": [("human", question)]},
+            config=config,
+        )
         names = used_tool_names(result["messages"])
         print(f"Tools used: {', '.join(names) if names else 'none'}")
         print(f"Agent: {result['messages'][-1].text}")
+
+
+async def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--list-tools",
+        action="store_true",
+        help="load the agent, print its tool names, and exit",
+    )
+    parser.add_argument(
+        "--thread-id",
+        default="support-session",
+        help="conversation-memory ID (default: support-session)",
+    )
+    parser.add_argument(
+        "--memory-db",
+        default=str(DEFAULT_MEMORY_DB_PATH),
+        help="SQLite checkpoint database used for durable conversation memory",
+    )
+    parser.add_argument(
+        "--in-memory",
+        action="store_true",
+        help="use process-local memory instead of durable SQLite checkpoints",
+    )
+    args = parser.parse_args()
+
+    if args.in_memory:
+        agent, tools = await build_agent()
+        await run_cli(agent, tools, args)
+        return
+
+    memory_db_path = Path(args.memory_db).expanduser().resolve()
+    memory_db_path.parent.mkdir(parents=True, exist_ok=True)
+    async with AsyncSqliteSaver.from_conn_string(str(memory_db_path)) as checkpointer:
+        await checkpointer.setup()
+        agent, tools = await build_agent(checkpointer=checkpointer)
+        await run_cli(agent, tools, args)
 
 
 if __name__ == "__main__":

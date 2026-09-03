@@ -1,0 +1,19 @@
+:root { font-family: Inter, system-ui, sans-serif; color: #e8edf5; background: #081018; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(circle at top, #18304a, #081018 55%); }
+button, input, textarea { font: inherit; }
+.shell { width: min(900px, calc(100% - 28px)); min-height: 92vh; margin: 4vh auto; display: grid; grid-template-rows: auto auto 1fr auto auto auto; background: rgba(11, 22, 33, .94); border: 1px solid #29445e; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 70px #0008; }
+header, .session { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 24px; border-bottom: 1px solid #24384b; }
+header small { color: #6fe7c8; letter-spacing: .18em; } h1 { margin: 3px 0 0; font-size: 1.5rem; } header b { color: #6fe7c8; }
+.session { flex-wrap: wrap; background: #0d1a27; } .session label { display: flex; gap: 10px; align-items: center; } input { width: 160px; }
+input, textarea { color: #eef5fb; background: #101f2d; border: 1px solid #38536d; border-radius: 10px; padding: 10px 12px; }
+.chat { padding: 26px; overflow-y: auto; min-height: 430px; max-height: 65vh; }
+.empty { text-align: center; color: #91a6b9; margin: 110px auto; } .empty h2 { color: #fff; }
+.message { max-width: 78%; margin: 0 0 18px; } .message span { display: block; color: #8196a8; font-size: .78rem; margin-bottom: 5px; }
+.message p { white-space: pre-wrap; margin: 0; padding: 13px 16px; border-radius: 4px 16px 16px; background: #15283a; line-height: 1.55; }
+.message.user { margin-left: auto; } .message.user span { text-align: right; } .message.user p { background: #137e6c; border-radius: 16px 4px 16px 16px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 24px; border-top: 1px solid #24384b; } .tools span { padding: 6px 10px; background: #132c3e; border-radius: 999px; color: #9dd8ff; font-size: .8rem; }
+form { display: flex; align-items: end; gap: 10px; padding: 18px 24px; border-top: 1px solid #24384b; } textarea { flex: 1; resize: none; }
+button { border: 0; border-radius: 10px; padding: 11px 18px; color: #06231d; background: #6fe7c8; font-weight: 700; cursor: pointer; } button.secondary { color: #dce8f2; background: #263a4d; } button.stop { color: #fff; background: #b6404c; }
+.error { margin: 0; padding: 8px 24px; color: #ff9ba5; }
+@media (max-width: 600px) { .shell { width: 100%; min-height: 100vh; margin: 0; border-radius: 0; } .chat { min-height: 50vh; } .message { max-width: 92%; } .session { align-items: flex-start; } }
